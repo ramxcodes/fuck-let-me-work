@@ -96,6 +96,12 @@ func (d *Daemon) guard(next http.Handler) http.Handler {
 			writeJSON(w, http.StatusForbidden, api.Error{Error: "unknown host: " + host})
 			return
 		}
+		if !isLocalhost(host) {
+			// A blocked site: never keep the connection open. Browsers reuse open
+			// connections without a new DNS lookup, so a kept-alive tab would stay
+			// on this page long after focus ends and the hosts file is clean.
+			w.Header().Set("Connection", "close")
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/") && r.Header.Get(api.Header) != "1" {
 			writeJSON(w, http.StatusForbidden, api.Error{Error: "missing " + api.Header + " header"})
 			return

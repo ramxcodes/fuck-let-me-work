@@ -73,11 +73,11 @@
     </div>
   </section>
 
-  <!-- Shown on a blocked site after focus is off, while the browser still has the old address cached. -->
+  <!-- Shown on a blocked site after focus is off, while the browser still has the old address cached.
+       The page reloads itself every 2s until the real site answers. -->
   <section id="released" hidden>
     <h1>Free.</h1>
-    <p class="lead">Focus is off. <span data-host></span> loads once your browser forgets the old address, usually within a minute.</p>
-    <button class="primary" id="retry">Try again</button>
+    <p class="lead">Focus is off. Opening <span data-host></span> as soon as your browser lets go of the old address. Safari: right away. Chrome and Firefox: up to a minute.</p>
   </section>
 
   <!-- The control panel, on http://127.0.0.1 -->
@@ -169,6 +169,11 @@ function render(st) {
   if (onBlockedSite) {
     $("blocked").hidden = !st.active;
     $("released").hidden = st.active;
+    if (!st.active) {
+      // Stop polling (it kept the tab on our server) and retry the real site.
+      clearInterval(poll);
+      setTimeout(() => location.reload(), 2000);
+    }
     return;
   }
   $("panel").hidden = false;
@@ -193,7 +198,6 @@ $("stop").onclick = () => act(api("DELETE", "focus"));
 $("unblock").onclick = () => {
   if (confirm("Really? The work will still be there.")) act(api("DELETE", "focus"));
 };
-$("retry").onclick = () => location.reload();
 for (const f of document.querySelectorAll("form[data-kind]")) {
   f.onsubmit = (e) => {
     e.preventDefault();
@@ -209,8 +213,8 @@ $("scheduleForm").onsubmit = (e) => {
 };
 
 const refresh = () => act(api("GET", "status"));
+const poll = setInterval(refresh, 3000);
 refresh();
-setInterval(refresh, 3000);
 </script>
 </body>
 </html>

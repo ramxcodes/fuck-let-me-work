@@ -184,11 +184,14 @@ func (d *Daemon) tick() (focus.Status, error) {
 	return st, hostsErr
 }
 
+func isLocalhost(host string) bool {
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
 // hostAllowed is true for localhost and every configured site. Requests and
 // certs for any other name are refused, which stops DNS rebinding tricks.
 func (d *Daemon) hostAllowed(host string) bool {
-	switch host {
-	case "localhost", "127.0.0.1", "::1":
+	if isLocalhost(host) {
 		return true
 	}
 	d.mu.Lock()

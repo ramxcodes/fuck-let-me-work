@@ -114,3 +114,19 @@ func TestHostsErrorReachesTheCaller(t *testing.T) {
 		t.Fatalf("want 500 with hosts error, got %d %s", w.Code, w.Body)
 	}
 }
+
+// Browsers reuse open connections without a new DNS lookup, so a blocked
+// site must never keep one open, or the tab stays here after focus ends.
+func TestBlockedSiteClosesConnection(t *testing.T) {
+	d, _ := newTestDaemon(t)
+	h := d.handler()
+	if got := call(h, "GET", "x.com", "/", "", false).Header().Get("Connection"); got != "close" {
+		t.Errorf("blocked site: Connection = %q, want close", got)
+	}
+	if got := call(h, "GET", "x.com", "/api/status", "", true).Header().Get("Connection"); got != "close" {
+		t.Errorf("blocked site API poll: Connection = %q, want close", got)
+	}
+	if got := call(h, "GET", "127.0.0.1", "/", "", false).Header().Get("Connection"); got != "" {
+		t.Errorf("control panel: Connection = %q, want keep-alive", got)
+	}
+}
