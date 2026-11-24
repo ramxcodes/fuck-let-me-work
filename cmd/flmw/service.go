@@ -125,6 +125,7 @@ func runDaemon(args []string) error {
 		HTTPAddrs:  split(f.http),
 		HTTPSAddrs: split(f.https),
 		Page:       web.Page,
+		Logo:       web.Logo,
 	}}
 	s, err := service.New(prg, svcConfig())
 	if err != nil {

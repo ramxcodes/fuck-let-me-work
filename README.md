@@ -1,3 +1,5 @@
+<img src="docs/logo.png" width="128" height="128" alt="flmw mascot: an orange blob in headphones holding up a hand">
+
 # fuck let me work
 
 I open Twitter while walking to the kitchen. Then 40 minutes are gone.

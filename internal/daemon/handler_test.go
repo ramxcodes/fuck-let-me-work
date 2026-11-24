@@ -48,6 +48,7 @@ func TestGuard(t *testing.T) {
 		{"page on unknown host", "evil.example", "/", false, 403},
 		{"ipv6 localhost", "[::1]:80", "/api/status", true, 200},
 		{"unknown api path", "localhost", "/api/nope", true, 404},
+		{"logo", "localhost", "/logo.png", false, 200},
 	}
 	for _, c := range cases {
 		if got := call(h, "GET", c.host, c.path, "", c.header).Code; got != c.code {

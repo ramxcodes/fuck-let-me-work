@@ -69,6 +69,11 @@ func (d *Daemon) handler() http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, api.Error{Error: "no such endpoint: " + r.Method + " " + r.URL.Path})
 	})
+	mux.HandleFunc("GET /logo.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "max-age=86400")
+		w.Write(d.opt.Logo)
+	})
 	// Every other path is the page: on a blocked site it is the block page, on localhost the control panel.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

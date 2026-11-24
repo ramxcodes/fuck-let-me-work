@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fuck let me work</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
   :root {
     --paper: #f3efe6;
@@ -29,7 +30,10 @@
   p { margin: 0 0 16px; }
   .lead { font: 22px/1.4 var(--serif); }
   .muted { color: var(--muted); }
-  .brand { font: 600 14px/1 var(--mono); color: var(--muted); margin-bottom: 48px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 600 14px/1 var(--mono); color: var(--muted); margin-bottom: 48px; }
+  .mascot { display: block; margin-bottom: 24px; }
+  /* The block page shows the big mascot, so the small brand mark would repeat it. */
+  .blocked-site .brand img { display: none; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--rule); margin-right: 10px; vertical-align: 2px; }
   .on .dot { background: var(--accent); }
   code { font: 14px var(--mono); }
@@ -56,10 +60,11 @@
 </head>
 <body>
 <main>
-  <div class="brand">fuck let me work</div>
+  <div class="brand"><img src="/logo.png" width="28" height="28" alt="">fuck let me work</div>
 
   <!-- Shown on a blocked site while focus is on. -->
   <section id="blocked" hidden>
+    <img class="mascot" src="/logo.png" width="104" height="104" alt="">
     <h1>Not now.</h1>
     <p class="lead"><span data-host></span> is blocked<span data-until></span>. You opened it out of habit. Go back to work.</p>
     <div class="row" style="margin-top:32px">
@@ -115,6 +120,7 @@
 "use strict";
 const host = location.hostname.replace(/^\[|\]$/g, "");
 const onBlockedSite = !["localhost", "127.0.0.1", "::1"].includes(host);
+document.body.classList.toggle("blocked-site", onBlockedSite);
 const $ = (id) => document.getElementById(id);
 
 async function api(method, path, body) {

@@ -30,6 +30,7 @@ type Options struct {
 	HTTPAddrs  []string
 	HTTPSAddrs []string
 	Page       []byte // the HTML for the block page and control panel
+	Logo       []byte // PNG served at /logo.png
 }
 
 type Daemon struct {
