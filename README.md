@@ -1,94 +1,127 @@
 # fuck let me work
 
-I open Twitter while walking to the kitchen. Then 40 minutes are gone. This app stops that.
+I open Twitter while walking to the kitchen. Then 40 minutes are gone.
 
-`flmw` blocks websites and closes apps while focus is on. Open twitter.com during focus and you get a page that says "Not now." instead. It has a button to turn focus off, because sometimes you really are done.
+`flmw` blocks websites and closes apps while you focus. Open twitter.com during focus and you get this instead:
 
-It runs on Linux, macOS and Windows. You, the menu bar, and your AI agent can all turn it on and off.
+![The block page: "Not now. twitter.com is blocked until 12:06 AM."](docs/blocked.png)
+
+The small link at the bottom turns focus off, because sometimes you really are done.
+
+It runs on macOS, Linux and Windows. You can turn it on from the terminal, the menu bar, a web page, or let your AI agent do it.
 
 ## Install
 
-Needs Go 1.26+.
+**macOS and Linux**
 
 ```sh
-go build -o flmw .
-sudo ./flmw install
+curl -fsSL https://raw.githubusercontent.com/ramxcodes/fuck-let-me-work/main/install.sh | sh
 ```
 
-`install` does four things:
+The script downloads the latest release for your system, checks its SHA-256 checksum, and runs `sudo flmw install`. Read [install.sh](install.sh) first if you like; it is 40 lines.
 
-1. Copies the binary into a folder only admins can change (see Files below). On macOS it also links `/usr/local/bin/flmw` to it. On Windows, add that folder to your PATH.
-2. Registers a background service (systemd, launchd or Windows service) that runs as root.
-3. Makes a local certificate authority (CA) and adds it to your system trust, so blocked HTTPS sites show the block page and not a certificate error.
-4. Starts the service.
+**Windows**
 
-Then start the tray app as your normal user:
+Download `flmw-windows-amd64.exe` (or `arm64`) from [Releases](https://github.com/ramxcodes/fuck-let-me-work/releases), rename it to `flmw.exe`, and run `flmw.exe install` in an Administrator terminal. Then add `C:\Program Files\fuck-let-me-work` to your PATH.
+
+**With Go** (1.26 or newer)
 
 ```sh
-flmw tray
+go install github.com/ramxcodes/fuck-let-me-work/cmd/flmw@latest
+sudo "$(go env GOPATH)/bin/flmw" install
 ```
 
-On Windows, run `flmw.exe install` from an Administrator terminal.
+`flmw install` does four things:
+
+1. Copies the binary to a folder only admins can change.
+2. Registers a background service (launchd, systemd or a Windows service) that runs as root.
+3. Makes a local certificate authority (CA) and adds it to your system trust, so blocked HTTPS sites show the block page and not a certificate warning.
+4. Starts the service and waits until it answers.
 
 ## Use
 
 ```sh
-flmw on 25m                       # focus for 25 minutes
-flmw on                           # focus until you stop it
+flmw on 25m          # focus for 25 minutes
+flmw on              # focus until you stop it
 flmw off
 flmw status
-
-flmw site add youtube.com reddit.com
-flmw app add Slack Discord        # process names, case does not matter
-flmw schedule add "0 9 * * 1-5" 2h   # weekdays 9 to 11
-flmw open                         # control panel at http://127.0.0.1
 ```
 
-Add `--json` to any of these for machine-readable output.
+```
+$ flmw status
+Focus: ON until 00:06 Wed (manual)
+Sites: x.com, twitter.com, linkedin.com, instagram.com, youtube.com, reddit.com
+Apps:  Slack, Discord
+Schedule s1795542385601: "0 9 * * 1-5" for 3h
+```
 
-Default blocked sites: x.com, twitter.com, linkedin.com, instagram.com. Sites and apps are blocked only while focus is on.
+Your lists are saved, so you set them up once:
 
-`flmw off` inside a schedule window pauses blocking until that window ends. Without that, the schedule would turn blocking back on two seconds later.
+```sh
+flmw site add youtube.com reddit.com   # full URLs work too
+flmw site rm linkedin.com
+flmw app add Slack Discord             # process names, any case
+flmw schedule add "0 9 * * 1-5" 3h     # weekdays, 9 to 12
+flmw schedule rm <id>                  # ids are in "flmw status"
+```
 
-## Agents
+Sites and apps are blocked only while focus is on. Out of the box the list is x.com, twitter.com, linkedin.com and instagram.com.
+
+`flmw off` inside a schedule window pauses blocking until that window ends. Otherwise the schedule would switch blocking back on two seconds later.
+
+### Control panel
+
+`flmw open`, or go to http://127.0.0.1. Same lists, same buttons.
+
+<img src="docs/panel.png" alt="Control panel with blocked sites, apps and schedules" width="480">
+
+### Menu bar
+
+`flmw tray` puts a dot in your menu bar or system tray: orange while focus is on, grey when off. Click it to start 25m, 50m, 2h, or focus until you stop. On Linux, GNOME needs the AppIndicator extension to show tray icons.
+
+### AI agents
 
 ```sh
 flmw skill
 ```
 
-prints a `SKILL.md` that tells an AI agent how to use the CLI. Save it in your agent's skills folder, for example `~/.claude/skills/flmw/SKILL.md`.
+prints a [SKILL.md](skill/SKILL.md) that teaches an agent the commands and the `--json` output. Save it as `~/.claude/skills/flmw/SKILL.md` (or wherever your agent reads skills), then ask it to "block YouTube for the next hour".
 
 ## How it works
 
-One Go binary, four roles:
+```mermaid
+flowchart LR
+  you["flmw CLI / tray / agent"] -- "local API (X-FLMW header)" --> d["flmw daemon<br/>(root service)"]
+  d -- "every 2s" --> h["hosts file<br/>twitter.com → 127.0.0.1"]
+  d -- "every 2s" --> k["kill blocked apps"]
+  b["browser opens twitter.com"] -- "resolves to 127.0.0.1" --> p["daemon :80 / :443<br/>serves the block page"]
+```
 
-- `flmw daemon` is the root service. Every 2 seconds it checks the config and makes the OS match it:
-  - it writes a marked block in the hosts file that points blocked sites at 127.0.0.1, and removes the block when focus ends or the service stops;
-  - it kills processes whose name matches a blocked app (on macOS, also anything inside `Name.app`). It only kills processes of normal login users, never root, SYSTEM or other system accounts.
-- The daemon serves one page on 127.0.0.1 ports 80 and 443. On a blocked site it is the block page. On `http://127.0.0.1` it is the control panel.
-- For HTTPS, the daemon signs a certificate for each blocked site with the local CA when the browser asks.
-- `flmw <command>` and `flmw tray` talk to the daemon over its local API.
+One Go binary, four jobs:
 
-The API needs an `X-FLMW: 1` header and only answers to localhost or a blocked site name. That stops other websites from calling it from your browser.
+- **`flmw daemon`** is the root service. Every 2 seconds it reads the config, decides if focus is on (manual session, schedule, or paused), and makes the system match:
+  - It writes a marked block to the hosts file that points blocked sites at 127.0.0.1. When focus ends or the service stops, it removes the block and your hosts file is byte-for-byte what it was.
+  - It kills processes whose name matches a blocked app (on macOS, also anything inside `Name.app`). It only touches processes of normal login users, never root, SYSTEM or other system accounts.
+- **The page.** The daemon listens on 127.0.0.1 ports 80 and 443. On a blocked site it shows "Not now." On `http://127.0.0.1` it is the control panel. It is one HTML file.
+- **HTTPS.** When the browser asks for `https://twitter.com`, the daemon signs a certificate for that name with the local CA, so the page loads with no warning. It only signs names that are on your list.
+- **The CLI and tray** only talk to the daemon over its API. The API needs an `X-FLMW: 1` header and only answers to localhost or a blocked site's name, so other websites can't call it from your browser.
 
-Files:
-
-| | Linux | macOS | Windows |
+| | macOS | Linux | Windows |
 |---|---|---|---|
-| binary | `/usr/local/bin/flmw` | `/Library/Application Support/fuck-let-me-work/flmw` | `%ProgramFiles%\fuck-let-me-work\flmw.exe` |
-| config and CA | `/var/lib/fuck-let-me-work` | `/Library/Application Support/fuck-let-me-work` | `%ProgramFiles%\fuck-let-me-work` |
-| hosts | `/etc/hosts` | `/etc/hosts` | `%SystemRoot%\System32\drivers\etc\hosts` |
+| binary | `/Library/Application Support/fuck-let-me-work/flmw` (linked from `/usr/local/bin/flmw`) | `/usr/local/bin/flmw` | `%ProgramFiles%\fuck-let-me-work\flmw.exe` |
+| config and CA | `/Library/Application Support/fuck-let-me-work` | `/var/lib/fuck-let-me-work` | `%ProgramFiles%\fuck-let-me-work` |
+| service log | `/var/log/fuck-let-me-work.err.log` | `journalctl -u fuck-let-me-work` | Event Viewer |
 
 ## Limits
 
-- Only the domain and `www.` are blocked. `m.youtube.com` needs its own `site add`. The hosts file has no wildcards.
+This stops habits, not a determined you. Any program on your machine can call the local API, which is how agents use it.
+
+- The hosts file has no wildcards. `youtube.com` also blocks `www.youtube.com`, but `m.youtube.com` needs its own `site add`.
 - A browser can keep a site open for about a minute after focus starts, until its DNS cache expires.
-- A browser with its own DNS-over-HTTPS setting may skip the hosts file. Turn that setting off, or set it to use the system resolver.
-- Chrome and Firefox on Linux keep their own certificate lists. `install` adds the CA to them when `certutil` is installed (Debian/Ubuntu: `libnss3-tools`).
+- A browser with its own DNS-over-HTTPS setting can skip the hosts file. Turn it off, or set it to use the system resolver.
 - Firefox on macOS: if you see a certificate warning, set `security.enterprise_roots.enabled` to `true` in `about:config`.
-- The macOS tray needs cgo, so build on a Mac to get it. A macOS binary cross-compiled from Linux has the CLI and daemon only.
-- Anything on your machine can call the local API. That is the point (agents use it), but it means this stops habits, not a determined you.
-- Port 80 or 443 already in use stops the daemon from starting. Check the service log.
+- Chrome and Firefox on Linux keep their own certificate lists. `install` adds the CA to them when `certutil` is installed (Debian/Ubuntu: `libnss3-tools`).
+- Ports 80 and 443 must be free. A local dev server or Docker on those ports stops the service from starting.
 
 ## Uninstall
 
@@ -96,13 +129,20 @@ Files:
 sudo flmw uninstall
 ```
 
-Removes the service, the CA from your trust stores, the hosts block, the binary, and the config folder.
+Removes the service, the CA from your trust stores, the hosts block, the binary and the config.
 
 ## Develop
 
 ```sh
 go test ./...
-# run the daemon on a temp hosts file and high ports, no root needed:
-go run . daemon --data-dir /tmp/flmw --hosts /tmp/hosts --http 127.0.0.1:18080 --https 127.0.0.1:18443
-FLMW_URL=http://127.0.0.1:18080 go run . on 25m
+
+# Run the daemon on a temp hosts file and high ports. No root, no changes to your system:
+go run ./cmd/flmw daemon --data-dir /tmp/flmw --hosts /tmp/hosts --http 127.0.0.1:18080 --https 127.0.0.1:18443
+FLMW_URL=http://127.0.0.1:18080 go run ./cmd/flmw on 25m
 ```
+
+Push a tag like `v0.2.0` and [the release workflow](.github/workflows/release.yml) builds every binary and publishes the release.
+
+## License
+
+MIT

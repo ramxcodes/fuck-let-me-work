@@ -68,7 +68,19 @@ type Status struct {
 // Duration is a time.Duration that reads and writes as "25m", "2h".
 type Duration time.Duration
 
-func (d Duration) MarshalText() ([]byte, error) { return []byte(time.Duration(d).String()), nil }
+// String drops zero parts: "3h", "1h30m", "45m" (time.Duration says "3h0m0s").
+func (d Duration) String() string {
+	s := time.Duration(d).String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return s
+}
+
+func (d Duration) MarshalText() ([]byte, error) { return []byte(d.String()), nil }
 
 func (d *Duration) UnmarshalText(b []byte) error {
 	v, err := time.ParseDuration(string(b))

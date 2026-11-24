@@ -163,7 +163,7 @@ func printStatus(st focus.Status, asJSON bool) error {
 		fmt.Println("Schedules: none")
 	}
 	for _, s := range st.Schedules {
-		fmt.Printf("Schedule %s: %q for %s\n", s.ID, s.Cron, time.Duration(s.Duration))
+		fmt.Printf("Schedule %s: %q for %s\n", s.ID, s.Cron, s.Duration)
 	}
 	return nil
 }

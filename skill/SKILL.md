@@ -39,7 +39,7 @@ flmw schedule rm <id> --json             # ids are in status.schedules[].id
   "until": "2026-11-24T11:40:00Z", // missing when focus has no end
   "sites": ["x.com", "twitter.com"],
   "apps": ["Slack"],
-  "schedules": [{"id": "s1732...", "cron": "0 9 * * 1-5", "duration": "2h0m0s"}],
+  "schedules": [{"id": "s1732...", "cron": "0 9 * * 1-5", "duration": "2h"}],
   "session": {"state": "focusing", "until": "..."}  // "idle" | "focusing" | "paused"
 }
 ```

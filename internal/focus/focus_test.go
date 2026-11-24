@@ -132,3 +132,18 @@ func TestRejectsBadInput(t *testing.T) {
 		t.Error("removing a missing app should fail")
 	}
 }
+
+func TestDurationString(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		3 * time.Hour: "3h", 90 * time.Minute: "1h30m", 45 * time.Minute: "45m",
+		30 * time.Second: "30s", time.Hour + time.Second: "1h0m1s", 0: "0s",
+	} {
+		if got := Duration(d).String(); got != want {
+			t.Errorf("%v: got %q, want %q", d, got, want)
+		}
+		var back Duration
+		if err := back.UnmarshalText([]byte(Duration(d).String())); err != nil || time.Duration(back) != d {
+			t.Errorf("%v does not round-trip: %v %v", d, back, err)
+		}
+	}
+}
