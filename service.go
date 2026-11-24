@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/kardianos/service"
 
+	"github.com/ramxcodes/fuck-let-me-work/internal/api"
 	"github.com/ramxcodes/fuck-let-me-work/internal/certs"
 	"github.com/ramxcodes/fuck-let-me-work/internal/daemon"
 	"github.com/ramxcodes/fuck-let-me-work/internal/hosts"
@@ -182,6 +184,9 @@ func install() error {
 	if err := s.Start(); err != nil {
 		return fmt.Errorf("start service: %w", err)
 	}
+	if err := waitForDaemon(10 * time.Second); err != nil {
+		return fmt.Errorf("service installed but not answering, check its log: %w", err)
+	}
 	fmt.Println("Installed", installPath(), "and started the service.")
 	if runtime.GOOS == "windows" {
 		fmt.Println("Add", defaultDataDir(), "to your PATH to run flmw from any terminal.")
@@ -192,6 +197,23 @@ func install() error {
 	}
 	fmt.Println("Next: run \"flmw tray\" for the menu bar app, or \"flmw on 25m\" to start focus.")
 	return nil
+}
+
+// waitForDaemon polls the API until it answers. The service manager (launchd
+// especially) starts the daemon a moment after Start returns, so a command run
+// right after install would otherwise fail.
+func waitForDaemon(limit time.Duration) error {
+	c := api.NewClient()
+	deadline := time.Now().Add(limit)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		_, err := c.Status(ctx)
+		cancel()
+		if err == nil || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 func uninstall() error {
