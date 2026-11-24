@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fuck let me work</title>
+<style>
+  :root {
+    --paper: #f3efe6;
+    --ink: #1b1a17;
+    --muted: #6d675c;
+    --rule: #d9d2c3;
+    --accent: #d9480f;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #181714; --ink: #ece6da; --muted: #9a9284; --rule: #34312b; --accent: #ff7a3d; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 600px; margin: 0 auto; padding: 56px 16px 80px; }
+  h1 { font: 400 clamp(56px, 14vw, 104px)/0.95 var(--serif); margin: 0 0 24px; letter-spacing: -0.02em; }
+  h2 { font: 600 13px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 40px 0 12px; }
+  p { margin: 0 0 16px; }
+  .lead { font: 22px/1.4 var(--serif); }
+  .muted { color: var(--muted); }
+  .brand { font: 600 14px/1 var(--mono); color: var(--muted); margin-bottom: 48px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--rule); margin-right: 10px; vertical-align: 2px; }
+  .on .dot { background: var(--accent); }
+  code { font: 14px var(--mono); }
+  button, input {
+    font: inherit; font-size: 16px; color: var(--ink); border-radius: 6px;
+    border: 1px solid var(--rule); background: transparent; padding: 8px 14px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--ink); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button.link { border: 0; padding: 0; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+  button.link:hover { color: var(--ink); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  li span { overflow-wrap: anywhere; }
+  li .empty { color: var(--muted); }
+  form { display: flex; gap: 8px; margin-top: 12px; }
+  form input { flex: 1; min-width: 0; }
+  #error { color: var(--accent); min-height: 24px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">fuck let me work</div>
+
+  <!-- Shown on a blocked site while focus is on. -->
+  <section id="blocked" hidden>
+    <h1>Not now.</h1>
+    <p class="lead"><span data-host></span> is blocked<span data-until></span>. You opened it out of habit. Go back to work.</p>
+    <div class="row" style="margin-top:32px">
+      <button class="primary" onclick="history.length > 1 ? history.back() : window.close()">Back to work</button>
+      <button class="link" id="unblock">Okay, unblock me. I really want to do it. I'm free from work. Turn it off.</button>
+    </div>
+  </section>
+
+  <!-- Shown on a blocked site after focus is off, while the browser still has the old address cached. -->
+  <section id="released" hidden>
+    <h1>Free.</h1>
+    <p class="lead">Focus is off. <span data-host></span> loads once your browser forgets the old address, usually within a minute.</p>
+    <button class="primary" id="retry">Try again</button>
+  </section>
+
+  <!-- The control panel, on http://127.0.0.1 -->
+  <section id="panel" hidden>
+    <p class="lead" id="state"><span class="dot"></span><span id="stateText">…</span></p>
+    <div class="row" id="startButtons">
+      <button class="primary" data-for="25m">Focus 25m</button>
+      <button data-for="50m">50m</button>
+      <button data-for="2h">2h</button>
+      <button data-for="">Until I stop</button>
+    </div>
+    <div class="row" id="stopButtons" hidden>
+      <button class="primary" id="stop">Stop focus</button>
+    </div>
+
+    <h2>Blocked sites</h2>
+    <ul id="sites"></ul>
+    <form data-kind="sites"><input name="name" placeholder="youtube.com" autocomplete="off" spellcheck="false" aria-label="Site to block"><button>Add</button></form>
+
+    <h2>Blocked apps</h2>
+    <ul id="apps"></ul>
+    <form data-kind="apps"><input name="name" placeholder="Slack" autocomplete="off" spellcheck="false" aria-label="App to block"><button>Add</button></form>
+
+    <h2>Schedules</h2>
+    <ul id="schedules"></ul>
+    <form id="scheduleForm">
+      <input name="cron" placeholder="0 9 * * 1-5" autocomplete="off" spellcheck="false" aria-label="Cron expression">
+      <input name="duration" placeholder="2h" autocomplete="off" spellcheck="false" aria-label="Duration" style="max-width:90px">
+      <button>Add</button>
+    </form>
+    <p class="muted" style="margin-top:8px">Cron is minute hour day month weekday. <code>0 9 * * 1-5</code> with <code>2h</code> blocks 9 to 11 on weekdays.</p>
+
+    <h2>Agents</h2>
+    <p class="muted">Run <code>flmw skill</code> to print the instructions for your agent.</p>
+  </section>
+
+  <p id="error" role="alert"></p>
+</main>
+<script>
+"use strict";
+const host = location.hostname.replace(/^\[|\]$/g, "");
+const onBlockedSite = !["localhost", "127.0.0.1", "::1"].includes(host);
+const $ = (id) => document.getElementById(id);
+
+async function api(method, path, body) {
+  const res = await fetch("/api/" + path, {
+    method,
+    headers: { "X-FLMW": "1", "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  $("error").textContent = "";
+  return data;
+}
+
+function act(promise) {
+  promise.then(render).catch((e) => ($("error").textContent = e.message));
+}
+
+const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+function list(id, items, label, remove) {
+  const ul = $(id);
+  ul.replaceChildren();
+  if (items.length === 0) {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="empty">None</span>';
+    ul.append(li);
+  }
+  for (const item of items) {
+    const li = document.createElement("li");
+    const text = document.createElement("span");
+    text.textContent = label(item);
+    const btn = document.createElement("button");
+    btn.className = "link";
+    btn.textContent = "remove";
+    btn.onclick = () => act(remove(item));
+    li.append(text, btn);
+    ul.append(li);
+  }
+}
+
+function render(st) {
+  for (const el of document.querySelectorAll("[data-host]")) el.textContent = host;
+  for (const el of document.querySelectorAll("[data-until]")) el.textContent = st.until ? " until " + clock(st.until) : "";
+
+  if (onBlockedSite) {
+    $("blocked").hidden = !st.active;
+    $("released").hidden = st.active;
+    return;
+  }
+  $("panel").hidden = false;
+  document.body.classList.toggle("on", st.active);
+  const why = st.reason === "schedule" ? " (schedule)" : "";
+  $("stateText").textContent = st.active
+    ? "Focus is on" + (st.until ? " until " + clock(st.until) : "") + why + "."
+    : st.session.state === "paused"
+      ? "Paused until " + clock(st.session.until) + ". Schedules start again after."
+      : "Focus is off.";
+  $("startButtons").hidden = st.active;
+  $("stopButtons").hidden = !st.active;
+  list("sites", st.sites, (s) => s, (s) => api("DELETE", "sites/" + encodeURIComponent(s)));
+  list("apps", st.apps, (a) => a, (a) => api("DELETE", "apps/" + encodeURIComponent(a)));
+  list("schedules", st.schedules, (s) => s.cron + "  for " + s.duration, (s) => api("DELETE", "schedules/" + encodeURIComponent(s.id)));
+}
+
+for (const b of document.querySelectorAll("[data-for]")) {
+  b.onclick = () => act(api("POST", "focus", b.dataset.for ? { duration: b.dataset.for } : {}));
+}
+$("stop").onclick = () => act(api("DELETE", "focus"));
+$("unblock").onclick = () => {
+  if (confirm("Really? The work will still be there.")) act(api("DELETE", "focus"));
+};
+$("retry").onclick = () => location.reload();
+for (const f of document.querySelectorAll("form[data-kind]")) {
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const name = f.querySelector("input").value.trim();
+    if (!name) return;
+    act(api("POST", f.dataset.kind, { name }).then((st) => (f.reset(), st)));
+  };
+}
+$("scheduleForm").onsubmit = (e) => {
+  e.preventDefault();
+  const f = e.target;
+  act(api("POST", "schedules", { cron: f.cron.value.trim(), duration: f.duration.value.trim() }).then((st) => (f.reset(), st)));
+};
+
+const refresh = () => act(api("GET", "status"));
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
